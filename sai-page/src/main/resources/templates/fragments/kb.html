@@ -1,0 +1,115 @@
+<th:block th:fragment="kb">
+  <div class="page kb-page">
+    <div class="page-head">
+      <div>
+        <h2>知识库</h2>
+        <p class="muted" x-text="kbSemanticActive ? '语义检索结果（按相关度排序）'
+            : (kbSearchKw ? '关键词搜索结果（按内容与关键词模糊匹配）'
+                          : '集中管理企业文档、规范与 FAQ，支持语义检索与 AI 引用。')"></p>
+      </div>
+      <button class="btn btn-primary btn-sm" x-on:click="openKbModal()">+ 新建条目</button>
+    </div>
+
+    <!-- 工具栏：关键词模糊搜索 / 语义检索（滑块开关切换） -->
+    <div class="kb-toolbar">
+      <div class="kb-search-box">
+        <input class="kb-search" type="text"
+               :placeholder="kbMode === 'sem' ? '输入问题，按语义相似度检索…' : '按文本内容或关键词模糊搜索…'"
+               x-model="kbKeyword" x-on:keydown.enter="unifiedSearch()" />
+        <!-- 模式开关（置于搜索框右侧）：左「搜索」=关键词模糊搜索（正文 + 已提炼关键词 LIKE，支持分页）
+                     右「检索」=语义检索（向量召回，按相关度排序，不分页） -->
+        <div class="search-mode-switch" :class="{'on': kbMode === 'sem'}"
+             x-on:click="toggleKbMode()"
+             :title="kbMode === 'sem' ? '当前：语义检索（点击切换为关键词搜索）' : '当前：关键词搜索（点击切换为语义检索）'">
+          <span class="switch-label" :class="{'active': kbMode === 'kw'}">搜索</span>
+          <div class="switch-track"><div class="switch-thumb"></div></div>
+          <span class="switch-label" :class="{'active': kbMode === 'sem'}">检索</span>
+        </div>
+        <!-- 相似度阈值调整（仅语义检索需要；数字步进 + 上下箭头，调整后即时重查） -->
+        <div class="th-wrap" x-show="kbMode === 'sem'">
+          <div class="th-stepper">
+            <span class="th-label">相似度</span>
+            <input class="th-num" type="number" min="0.1" max="1" step="0.05"
+                   x-model.number="kbThreshold" x-on:change="applyKbTh()" />
+            <div class="th-arrows">
+              <button class="th-arrow up" type="button" title="增大相似度"
+                      x-on:click="kbThreshold = Math.min(1, +(kbThreshold + 0.05).toFixed(2)); applyKbTh()"></button>
+              <button class="th-arrow down" type="button" title="减小相似度"
+                      x-on:click="kbThreshold = Math.max(0.1, +(kbThreshold - 0.05).toFixed(2)); applyKbTh()"></button>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" x-on:click="unifiedSearch()"
+                x-text="kbMode === 'sem' ? '检索' : '搜索'">搜索</button>
+        <button class="btn btn-ghost btn-sm" x-on:click="resetKbSearch()"
+                x-show="kbSemanticActive || kbSearchKw">重置</button>
+      </div>
+    </div>
+
+    <!-- 加载态 -->
+    <div class="kb-loading" x-show="kbLoading">
+      <span class="spin-sm"></span> 加载中…
+    </div>
+
+    <!-- 条目列表 / 语义检索结果：同一张表，列与样式不变，仅文字随检索结果变化 -->
+    <div class="data-box" x-show="!kbLoading">
+      <table class="tbl wide" x-show="kbDisplay().length">
+        <thead>
+          <tr>
+            <th>文本内容</th>
+            <th>关键词</th>
+            <th :class="kbSemanticActive ? 'ta-center' : ''" x-text="kbSemanticActive ? '相似度' : '状态'"></th>
+            <th>更新时间</th>
+            <th class="ta-right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="d in kbDisplay()" :key="d.id">
+            <tr>
+              <td>
+                <div class="t-link" x-on:click="openKbDetail(d.id, d.keywords)" :title="d.snippet" x-text="d.snippet || '（暂无正文）'"></div>
+              </td>
+              <td class="kw-cell">
+                <template x-if="(d.keywords || []).length">
+                  <div class="kw-wrap">
+                    <template x-for="(kw, i) in d.keywords.slice(0, kbKwLimit)" :key="i">
+                      <span class="tag" x-text="kw"></span>
+                    </template>
+                    <span class="kw-more" x-show="d.keywords.length > kbKwLimit"
+                          x-text="'+' + (d.keywords.length - kbKwLimit)"
+                          :title="'共 ' + d.keywords.length + ' 个：' + d.keywords.join('、') + '（点文本内容查看全部）'"></span>
+                  </div>
+                </template>
+                <span class="muted sm" x-show="!(d.keywords || []).length" x-text="d.isSem ? '—' : '未提炼'"></span>
+              </td>
+              <td :class="kbSemanticActive ? 'ta-center' : ''">
+                <span class="badge ok" x-show="!d.isSem &amp;&amp; d.indexed">已索引</span>
+                <span class="muted sm" x-show="!d.isSem &amp;&amp; !d.indexed">未索引</span>
+                <span class="badge" x-show="d.isSem" x-text="d.score != null ? (d.score * 100).toFixed(1) + '%' : '—'"></span>
+              </td>
+              <td><span class="t-now" x-text="d.isSem ? '—' : d.time"></span></td>
+              <td class="ta-right">
+                <div class="row-actions">
+                  <button class="btn btn-ghost btn-xs" x-on:click="openKbModal(d)">编辑</button>
+                  <button class="btn btn-ghost btn-xs danger" x-on:click="deleteKb(d.id)">删除</button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div class="kb-empty" x-show="kbDisplay().length === 0">
+        <p class="muted" x-show="kbSemanticActive">未检索到相关片段，换个问法试试。</p>
+        <p class="muted" x-show="!kbSemanticActive &amp;&amp; kbSearchKw">没有找到包含「<span x-text="kbSearchKw"></span>」的条目，换个关键词试试。</p>
+        <p class="muted" x-show="!kbSemanticActive &amp;&amp; !kbSearchKw">暂无知识库条目，点击右上角「新建条目」开始添加，或试试用上方搜索。</p>
+      </div>
+    </div>
+
+    <!-- 分页 -->
+    <div class="kb-pager" x-show="!kbSemanticActive &amp;&amp; kbTotal > 0 &amp;&amp; !kbLoading">
+      <button class="btn btn-ghost btn-sm" x-on:click="kbGoto(kbPage - 1)" :disabled="kbPage <= 1">上一页</button>
+      <span class="kb-page-info" x-text="kbPage + ' / ' + kbPageCount + '（共 ' + kbTotal + ' 条）'"></span>
+      <button class="btn btn-ghost btn-sm" x-on:click="kbGoto(kbPage + 1)" :disabled="kbPage >= kbPageCount">下一页</button>
+    </div>
+  </div>
+</th:block>

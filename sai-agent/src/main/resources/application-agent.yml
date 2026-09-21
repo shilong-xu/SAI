@@ -1,0 +1,153 @@
+agentScope:
+  workspace: .agentscope/workspace
+
+  # ===== 文件沙箱（LocalFilesystemSpec）=====
+  filesystem:
+    # 额外可访问根目录（逗号分隔的相对/绝对路径）；空=仅 workspace
+    # 例：additionalRoots: /data/share,/tmp/work
+    additionalRoots:
+    # 隔离级别：GLOBAL(共享全局，默认) | USER(按用户) | SESSION(按会话) | AGENT
+    # 注意：USER/SESSION 会把记忆写入 <userId>/<sessionId> 子目录，根目录 MEMORY.md 不会即时更新
+    isolationScope: GLOBAL
+
+  harness:
+    maxIters: 10
+
+  models:
+    modelName: deepseek-flash
+    # ⚠️ 密钥务必通过环境变量注入：export SAI_LLM_API_KEY=sk-xxx
+    apiKey: ${SAI_LLM_API_KEY:}
+    apiBase: https://api.deepseek.com
+    temperature: 0.3             # 0.85 偏随机易"抖机灵/太活泼"；0.6 更稳、像真人打字节奏，口语感靠提示词而非高温维持
+    maxTokens: 2000              # 思考型模型 thinking 与正文共享配额；1000 会被超长思考挤占导致正文截断（单词卡片断半句），4000 留足余量
+  compaction:
+    triggerMessages: 30          # 30轮后触发压缩（从 50 下调，context 保持紧凑）
+    triggerTokens: 0
+    reserved: 3000               # 压缩后历史上下文预算（从 5000 降到 3000，加快 prefill）
+    keepTokens: -1
+    keepTokensMin: 1200          # 保留最小 token（对齐 reserved）
+    keepTokensMax: 3500          # 保留最大 token（对齐 reserved）
+    keepTokensRatio: 0.15        # 保留比例（从 0.25 降到 0.15）
+    flushBeforeCompact: true
+    offloadBeforeCompact: true
+    keepMessages: 10             # 压缩后保留最近 10 条消息（从 25 下调）
+    truncateArgs:
+      maxArgLength: 200          # 单参数最大长度，超过截断（减少冗长参数占用 context）
+      triggerMessages: 3         # 累积多少条工具消息后触发参数截断
+      triggerTokens: 0           # 不按 token 触发（默认 0）
+      keepMessages: 2            # 截断后保留最近工具消息数
+      keepTokens: 0              # 不按 token 保留（默认 0）
+      truncationText: "…"        # 截断占位符
+
+  # ===== 短期记忆存储（AgentState → Redis）=====
+  # 官方默认 JsonFileAgentStateStore 落单机文件：不能跨副本共享、容器重建即丢。
+  # 切到官方 io.agentscope.extensions.redis.state.RedisAgentStateStore 后，
+  # 同一 (userId, sessionId) 在任意副本上都能续上上下文（故障转移/滚动发布无感）。
+  # 决策：纯官方，放弃自研 TTL/清理——此处不再配置 ttlDays 与 cleanup 段；
+  # 冷数据回收完全交由 Redis 服务端 maxmemory + allkeys-lru 淘汰策略兜底（可能不可控淘汰）。
+  state:
+    redis:
+      enabled: true                  # false → 回退框架默认的文件状态存储
+      keyPrefix: sai:agent:state     # Redis key 前缀
+
+  # ===== 长期记忆（MySQL + 向量检索，取代 workspace 文件记忆）=====
+  # useFileMemory=false（默认）→ 关闭框架文件记忆(MEMORY.md / memory/*.md)，改走 MySQL 向量长期记忆。
+  # recordMode=RAW（默认）→ 原始消息直接向量化，零 LLM 成本；切 EXTRACT 需更多成本（每轮一次抽取调用）。
+  # 纯自动模式：LongTermMemoryMiddleware 负责「推理前自动召回（注入 system prompt）+ 对话后自动沉淀」。
+  # 不注册任何记忆工具（含官方 memory_search/memory_get/memory_save/session_search）——
+  # 记忆的读与写完全不经过模型决策，避免模型忘记调用 / 乱写噪音。
+  # 注：官方 io.agentscope.core.memory.LongTermMemory / LongTermMemoryTools / hook.Hook 自 2.0.0 起
+  #     均已 @Deprecated(forRemoval=true)，本项目不再依赖其中任何一个。
+  longTermMemory:
+    enabled: true
+    useFileMemory: false
+    recordMode: RAW
+    defaultUserId: ""               # 单用户场景兜底标识；多用户时由 RuntimeContext 的 userId 覆盖
+    agentName: Master
+    topK: 5                         # 每轮召回条数上限
+    threshold: 0.65                 # 余弦相似度下限，越大越相关
+    maxInjectChars: 1500            # 注入上下文的最大字符预算
+    tailScan: 6                     # 沉淀时扫描尾部消息条数
+    minChars: 8                     # 单条记忆最小字符数
+    maxPerCall: 3                   # 单轮最多沉淀条数
+    maxQueryChars: 1000             # 召回 query 最大字符数
+    # ===== 超长内容「语义精简」后再向量化（取代机械截断，保留更完整语义）=====
+    # 专用精简模型名（OpenAI 兼容）留空则复用主模型 openAIChatModel；仅长期记忆沉淀时使用。
+    refineEnabled: true             # 是否启用：原文超阈值时用模型压缩再向量化
+    refineModel: ""                 # 专用精简小模型名（留空=复用主模型 agentScope.models.modelName）
+    refineThreshold: 1500           # 触发精简的原文长度阈值（字符），短于此值直接向量化、不精简
+    refineMaxChars: 800             # 精简后目标长度上限（字符）
+    dedupThreshold: 0.95            # 入库去重相似度阈值（>= 视为重复，跳过）
+
+  # ===== 长期记忆配置 =====
+  memory:
+    # flush 触发模式：throttled(节流) | always(每次都触发) | never(不触发)
+    # 改为 always：每轮对话结束都触发一次记忆抽取，保证"训练答案"等短会话/结尾轮不漏抽。
+    # 无价值内容会被 flushPrompt 判为 NO_REPLY 直接丢弃，实际开销可控。
+    flushTrigger: throttled
+    flushThrottleMinutes: 10      # always 模式下不生效，保留以备切回 throttled
+    consolidationMinGapMinutes: 2  # 两次 consolidation 之间的最小间隔（分钟）；调小让根 MEMORY.md 更快并入新记忆（原 30）
+    consolidationMaxTokens: 4000  # consolidation 时的最大 token 数
+    dailyFileRetentionDays: 30    # 日记文件保留天数
+    sessionRetentionDays: 30      # 会话记录保留天数
+  # ===== 向量化模型（EmbeddingClient 读取本块，路径为 agentScope.embedding.*）=====
+  embedding:
+    # 本地 Ollama bge-m3 向量模型（1024 维，多语言/中文友好）
+    # 启动前请先：ollama pull bge-m3
+    enabled: true
+    base-url: http://127.0.0.1:11434
+    # Ollama 格式下忽略 api-path：单条走 /api/embeddings，批量走 /api/embed（与参考实现一致）
+    api-path: /api/embed
+    model: bge-m3
+    # 接口格式：openai | tei | ollama | baserow（此处使用 Ollama 标准双端点）
+    format: ollama
+    timeout-ms: 30000
+    # bge-m3 输出 1024 维（0=不校验）
+    vector-dimensions: 1024
+
+  # ===== 智能体进化通道（默认全部开启，见官方「工作区」文档）=====
+  # 以下 default 全为 true；若某通道设为 false，则对应能力不被装配（会话日志无关闭开关，恒开）。
+  evolution:
+    # ① 长期记忆（MEMORY.md + memory/）：由 compaction + memory 段已配置，此处为统一开关
+    #   false → 不注入 .memory()，agent 不再从对话沉淀长期记忆（上下文压缩 compaction 仍生效）
+    memory: true
+    # ② 自学习技能（skills/、_drafts/、.archive/）：agent 从成功模式起草新技能并经闸门成为可复用能力
+    skill:
+      enabled: true
+      # autoPromote: false=起草后需经审批闸门才生效；true=自动转正（跳过人工审批，全自主进化）。
+      autoPromote: true
+      securityScan: true          # 起草技能时做安全扫描
+      draftsDir: skills/_drafts   # 草稿目录（相对 workspace）
+      mainDir: skills             # 正式技能目录（相对 workspace）；归档自动进 skills/.archive
+    # ③ 计划文件（plans/PLAN.md）：Plan Mode 写下的计划持久化、跨调用保留
+    plan:
+      enabled: true
+      planFileDirectory: plans    # 计划文件目录（相对 workspace），默认写入 plans/PLAN.md
+    # ④ 工具结果落盘：单条工具结果超 maxResultChars 则整条写盘，上下文只留 head/tail 预览 + read_file 指针
+    toolResultEviction:
+      enabled: true
+      maxResultChars: 80000       # 单条工具结果超过此字符数即落盘（框架默认 80K）
+      previewChars: 4000          # head/tail 各保留的预览字符数
+      evictionPath: _eviction     # 落盘目录（相对 workspace）
+
+  # 人格数据盘文件名（相对 workspace）：每轮由 additionalContextFile 全文注入，不参与后台自动改写；换人只改此文件。
+  soulFile: SOUL.md
+
+# ===== 主 Agent 能力开关（声明式装配）=====
+sai:
+  # ===== 编排模式（SAA 多智能体流水线）=====
+  orchestration:
+    self-check-rounds: 1  # 自检回环次数：reviewer↔reviser 之间的「评审→修订」循环轮数。
+
+  agent:
+    shell:
+      enabled: true # 是否启用 Shell 命令执行器（真实危险能力，请谨慎）
+      allowed-commands: "ls,cat,pwd,echo,head,tail,grep,find,python3,date"  # 允许执行的命令白名单（逗号分隔）。仅匹配可执行文件名，
+    mcp:
+      enabled: false  # 当前无 MCP server 地址，默认关闭。 启用方式：在 .agentscope/workspace 放置 MCP tools 配置（transport/url/command 等），
+    knowledge:
+      # 已接入本地 embeddings 服务（配置见上方 agentScope.embedding 块），开启知识检索能力
+      enabled: true
+    init:
+      enabled: true # 总开关：false 时整体跳过初始化（不检查、不同步任何文件）, true（启用）
+      force: true # 覆盖策略 false(仅补全缺失的文件/目录，已存在保持不动(运行期记忆不会被覆盖)), true：强制清空受管目录（subagents/skills/knowledge）并全量覆盖模板文件

@@ -1,0 +1,124 @@
+<th:block th:fragment="agent-schedule">
+  <div class="page sched-page">
+    <div class="page-head">
+      <div>
+        <h2>Agent 定时任务</h2>
+        <p class="muted">管理按 Cron 自动调用 AI Agent 的定时任务（AGENT 分组），全部对接后端 /api/agent-schedule。</p>
+      </div>
+      <button class="btn btn-primary btn-sm" x-on:click="openAgentSchedModal()">+ 新建 Agent 任务</button>
+    </div>
+
+    <!-- 工具栏：关键字搜索 -->
+    <div class="kb-toolbar">
+      <div class="kb-search-box">
+        <input class="kb-search" type="text" placeholder="按任务名 / 描述搜索…"
+               x-model="agentSchedKeyword" x-on:keydown.enter="searchAgentSched()" />
+        <button class="btn btn-primary btn-sm" x-on:click="searchAgentSched()">搜索</button>
+      </div>
+    </div>
+
+    <!-- 加载态 -->
+    <div class="kb-loading" x-show="agentSchedLoading"><span class="spin-sm"></span> 加载中…</div>
+
+    <!-- 任务表格（无数据时整表隐藏，表头不展示，由下方空态提示承担） -->
+    <div class="sched-wrap" x-show="!agentSchedLoading">
+      <table class="tbl" x-show="agentSchedTasks.length">
+        <thead>
+          <tr>
+            <th>任务名</th>
+            <th>Cron</th>
+            <th>Agent 消息</th>
+            <th>状态</th>
+            <th class="ta-right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="t in agentSchedTasks" :key="t.id">
+            <tr>
+              <td>
+                <div class="t-name" x-text="t.name"></div>
+                <div class="t-desc muted" x-show="t.description" x-text="t.description"></div>
+              </td>
+              <td><code class="cron" x-text="t.cron" :title="t.cron"></code></td>
+              <td>
+                <div class="t-desc" x-text="t.message" :title="t.message"></div>
+              </td>
+              <td>
+                <button class="switch" :class="{'on': t.status===1}"
+                        x-on:click="toggleAgentSched(t.id)"
+                        :title="t.status===1 ? '点击停用' : '点击启用'">
+                  <span class="knob"></span>
+                </button>
+                <span class="muted sm" x-text="t.status===1 ? '启用' : '停用'"></span>
+              </td>
+              <td class="ta-right">
+                <div class="row-actions">
+                  <button class="btn btn-ghost btn-xs" x-on:click="openAgentSchedModal(t)">编辑</button>
+                  <button class="btn btn-ghost btn-xs" x-on:click="runAgentSched(t.id)" title="立即执行一次">执行</button>
+                  <button class="btn btn-ghost btn-xs danger" x-on:click="deleteAgentSched(t.id)">删除</button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div class="kb-empty" x-show="agentSchedTasks.length === 0">
+        <p class="muted">暂无 Agent 定时任务。点击右上角「新建 Agent 任务」添加，或确认后端调度模块（sai-schedule）已启用。</p>
+      </div>
+    </div>
+
+    <!-- 分页 -->
+    <div class="kb-pager" x-show="agentSchedTotal > 0 &amp;&amp; !agentSchedLoading">
+      <button class="btn btn-ghost btn-sm" x-on:click="agentSchedGoto(agentSchedPage - 1)" :disabled="agentSchedPage <= 1">上一页</button>
+      <span class="kb-page-info" x-text="agentSchedPage + ' / ' + agentSchedPageCount + '（共 ' + agentSchedTotal + ' 条）'"></span>
+      <button class="btn btn-ghost btn-sm" x-on:click="agentSchedGoto(agentSchedPage + 1)" :disabled="agentSchedPage >= agentSchedPageCount">下一页</button>
+    </div>
+
+    <!-- 新建 / 编辑 弹窗 -->
+    <div class="modal-mask" x-show="agentSchedModalOpen" x-cloak>
+      <div class="modal-card wide">
+        <h3 x-text="agentSchedForm.id ? '编辑 Agent 任务' : '新建 Agent 任务'"></h3>
+        <div class="form">
+          <label class="field"><span>任务名<span class="req">*</span></span>
+            <input type="text" x-model="agentSchedForm.name" placeholder="例如：每日晨报生成" />
+          </label>
+          <label class="field"><span>描述</span>
+            <input type="text" x-model="agentSchedForm.description" placeholder="可选，简述任务用途" />
+          </label>
+          <label class="field"><span>Cron 表达式<span class="req">*</span></span>
+            <input type="text" x-model="agentSchedForm.cron" placeholder="0 0 9 * * ?" />
+          </label>
+          <label class="field"><span>Agent 对话消息<span class="req">*</span></span>
+            <div class="md-tabs">
+              <button type="button" class="md-tab" :class="{'active': agentSchedTab==='edit'}" x-on:click="agentSchedTab='edit'">编辑</button>
+              <button type="button" class="md-tab" :class="{'active': agentSchedTab==='preview'}" x-on:click="agentSchedTab='preview'">预览</button>
+            </div>
+            <textarea x-show="agentSchedTab==='edit'" x-model="agentSchedForm.message" rows="5"
+                      placeholder="定时触发时发送给 AI Agent 的提示词，例如：请生成本周的运营数据简报…"></textarea>
+            <div x-show="agentSchedTab==='preview'">
+              <div class="bubble md kb-mdbox kb-preview" x-html="md(agentSchedForm.message)"></div>
+              <p class="md-hint" x-show="!agentSchedForm.message">（暂无内容可预览）</p>
+            </div>
+            <p class="md-hint">支持 Markdown：# 标题、**加粗**、*斜体*、<code>`代码`</code>、&gt; 引用、代码块、列表与表格。</p>
+          </label>
+          <label class="field"><span>状态</span>
+            <div class="select-theme" x-data="{ open:false }" :class="{'open': open}">
+              <button type="button" class="select-trigger" x-on:click="open=!open">
+                <span x-text="agentSchedForm.status == 1 ? '启用' : '停用'"></span>
+                <svg class="sa" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="select-options" x-show="open" x-on:click.outside="open=false" x-transition>
+                <div class="select-option" :class="{'selected': agentSchedForm.status == 1}" x-on:click="agentSchedForm.status='1'; open=false">启用</div>
+                <div class="select-option" :class="{'selected': agentSchedForm.status != 1}" x-on:click="agentSchedForm.status='0'; open=false">停用</div>
+              </div>
+            </div>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost btn-sm" x-on:click="agentSchedModalOpen=false">取消</button>
+          <button class="btn btn-primary btn-sm" x-on:click="saveAgentSched()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</th:block>

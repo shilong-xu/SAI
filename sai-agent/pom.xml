@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.xsl</groupId>
+        <artifactId>SAI</artifactId>
+        <version>1.0</version>
+    </parent>
+
+    <artifactId>sai-agent</artifactId>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- 架构模块 -->
+        <dependency>
+            <groupId>com.xsl</groupId>
+            <artifactId>sai-framework</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-harness</artifactId>
+            <version>2.0.3</version>
+        </dependency>
+        <!-- RC5: OpenAI 模型提供商已从 agentscope-core 拆分为独立扩展模块，必须显式引入。
+             版本必须与 agentscope-harness 保持一致（同 2.0.3），否则可能引用到不同 core 版本。 -->
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-model-openai</artifactId>
+            <version>2.0.3</version>
+        </dependency>
+
+        <!-- 官方 Redis 短期记忆存储（io.agentscope.extensions.redis.state.RedisAgentStateStore）。
+             复用现有 RedissonClient（经 .redissonClient(...) 装配）；版本与 harness 保持 2.0.3 一致。 -->
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-redis</artifactId>
+            <version>2.0.3</version>
+        </dependency>
+
+        <!-- Lombok: 编译期注解处理器，提供 @Slf4j 等（provided 不打包进产物） -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ============ Spring AI Alibaba：顶层流程编排（Graph 多智能体协作） ============ -->
+        <dependency>
+            <groupId>com.alibaba.cloud.ai</groupId>
+            <artifactId>spring-ai-alibaba-graph-core</artifactId>
+        </dependency>
+        <!-- OpenAI 兼容模型客户端（复用现有 sai.agent.model.* 端点，供 SAA 编排层 ChatClient 使用）。
+             使用核心库而非 starter，避免 spring-ai 自动配置再创建一份 ChatModel/ChatClient 与本配置冲突。 -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-client-chat</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.46</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+
+</project>

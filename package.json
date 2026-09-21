@@ -1,0 +1,9 @@
+{
+  "name": "sai-page",
+  "version": "1.0.0",
+  "description": "SAI 云枢 —— 前端静态资源工程（Thymeleaf 页面本体在 sai-page/src/main/resources 下），playwright 仅供端到端自测",
+  "private": true,
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}

@@ -1,0 +1,23 @@
+spring:
+  config:
+    activate:
+      on-profile: page
+
+  # 静态资源映射（CSS / JS / 本地 vendor 库 / 图片）
+  web:
+    resources:
+      static-locations:
+        - classpath:/static/
+        - classpath:/public/
+        - classpath:/resources/
+        - classpath:/META-INF/resources/
+
+  # 页面模板引擎（Thymeleaf 服务端渲染）
+  thymeleaf:
+    cache: true #页面是否启动缓存 true-是, false-否
+    encoding: UTF-8
+    mode: HTML
+    servlet:
+      content-type: text/html;charset=UTF-8
+    prefix: classpath:/templates/
+    suffix: .html

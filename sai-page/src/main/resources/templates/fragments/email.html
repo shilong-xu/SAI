@@ -1,0 +1,110 @@
+<th:block th:fragment="email">
+  <div class="page email-page">
+    <div class="page-head">
+      <div>
+        <h2>邮件</h2>
+        <p class="muted">收发邮件统一归档：接收由定时任务抓取、发送由 send_mail 自动入库，默认按创建时间倒序，可按方向筛选。</p>
+      </div>
+      <button class="btn btn-primary btn-sm" x-on:click="fetchEmail()">
+        <span x-text="emailFetching ? '抓取中…' : '立即抓取'"></span>
+      </button>
+    </div>
+
+    <!-- 工具栏：关键词搜索 + 方向筛选 -->
+    <div class="kb-toolbar">
+      <div class="kb-search-box">
+        <input class="kb-search" type="text" placeholder="按主题 / 正文 / 发件人搜索…"
+               x-model="emailKeyword" x-on:keydown.enter="emailSearch()" />
+        <button class="btn btn-primary btn-sm" x-on:click="emailSearch()">搜索</button>
+      </div>
+      <select class="kb-select" x-model="emailDirection" x-on:change="emailFilter(emailDirection)"
+              title="按收发方向筛选" aria-label="邮件方向筛选">
+        <option value="">全部</option>
+        <option value="0">接收</option>
+        <option value="1">发送</option>
+      </select>
+    </div>
+
+    <!-- 加载态 -->
+    <div class="kb-loading" x-show="emailLoading"><span class="spin-sm"></span> 加载中…</div>
+
+    <!-- 邮件列表（创建时间倒序） -->
+    <div class="data-box" x-show="!emailLoading">
+      <table class="tbl wide" x-show="emailList.length">
+        <thead>
+          <tr>
+            <th>方向</th>
+            <th>主题 / 对方</th>
+            <th>摘要</th>
+            <th>创建时间</th>
+            <th class="ta-right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="d in emailList" :key="d.id">
+            <tr>
+              <td>
+                <span class="badge in" x-show="d.direction===0">接收</span>
+                <span class="badge out" x-show="d.direction===1">发送</span>
+              </td>
+              <td>
+                <span class="t-link" x-on:click="openEmailDetail(d.id)" :title="d.subject" x-text="d.subject || '(无主题)'"></span>
+                <div class="t-sub">
+                  <span x-show="d.direction===0" x-text="'发件人：' + (d.fromName || d.fromAddr || '—')"></span>
+                  <span x-show="d.direction===1" x-text="'收件人：' + (d.toAddr || '—')"></span>
+                </div>
+              </td>
+              <td><span class="t-snip" :title="d.summary || d.content || ''" x-text="d.summary || d.content || '（暂无正文）'"></span></td>
+              <td><span class="t-now" x-text="d.time"></span></td>
+              <td class="ta-right">
+                <div class="row-actions">
+                  <button class="btn btn-ghost btn-xs danger" x-on:click="deleteEmail(d.id)">删除</button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div class="kb-empty" x-show="emailList.length === 0">
+        <p class="muted" x-show="emailDirection===''">暂无邮件。接收邮件由定时任务自动抓取，也可点右上角「立即抓取」手动触发一次。</p>
+        <p class="muted" x-show="emailDirection==='0'">暂无接收邮件。确认已配置 IMAP 服务器（spring.mail.receive.host）后点「立即抓取」。</p>
+        <p class="muted" x-show="emailDirection==='1'">暂无发送邮件。Agent 成功调用 send_mail 后会自动归档到这里。</p>
+      </div>
+    </div>
+
+    <!-- 分页 -->
+    <div class="kb-pager" x-show="emailTotal > 0 &amp;&amp; !emailLoading">
+      <button class="btn btn-ghost btn-sm" x-on:click="emailGoto(emailPage - 1)" :disabled="emailPage <= 1">上一页</button>
+      <span class="kb-page-info" x-text="emailPage + ' / ' + emailPageCount + '（共 ' + emailTotal + ' 条）'"></span>
+      <button class="btn btn-ghost btn-sm" x-on:click="emailGoto(emailPage + 1)" :disabled="emailPage >= emailPageCount">下一页</button>
+    </div>
+
+    <!-- 详情 弹窗（只读） -->
+    <div class="modal-mask" x-show="emailDetailOpen" x-cloak>
+      <div class="modal-card wide">
+        <h3 x-text="emailDetail.subject || '(无主题)'"></h3>
+        <div class="kb-detail">
+          <div class="kb-detail-meta">
+            <span class="badge in" x-show="emailDetail.direction===0">接收</span>
+            <span class="badge out" x-show="emailDetail.direction===1">发送</span>
+            <span class="tag" x-show="emailDetail.hasAttachment" x-text="'附件 ' + (emailDetail.attachCount || 0)"></span>
+            <span class="muted" x-show="emailDetail.createTime" x-text="'创建：' + fmtDateTime(emailDetail.createTime)"></span>
+            <span class="muted" x-show="emailDetail.receivedAt" x-text="'邮件时间：' + fmtDateTime(emailDetail.receivedAt)"></span>
+          </div>
+          <div class="muted sm" x-text="'发件人：' + (emailDetail.fromAddr || '—') + (emailDetail.fromName ? '（' + emailDetail.fromName + '）' : '')"></div>
+          <div class="muted sm" x-text="'收件人：' + (emailDetail.toAddr || '—')"></div>
+          <div class="muted sm" x-show="emailDetail.messageId" x-text="'Message-ID：' + emailDetail.messageId"></div>
+          <div class="kb-detail-content" x-show="emailDetail.content" x-html="emailHtml(emailDetail.content)"></div>
+          <div class="muted" x-show="!emailDetail.content">（暂无正文）</div>
+          <div x-show="emailDetail.summary">
+            <div class="muted sm" style="margin-bottom:6px">AI 摘要</div>
+            <div class="kb-detail-remark" x-html="emailHtml(emailDetail.summary)"></div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost btn-sm" x-on:click="emailDetailOpen=false">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</th:block>

@@ -1,0 +1,50 @@
+<th:block th:fragment="welcome">
+  <div class="welcome-inner">
+    <div class="welcome-wrap">
+      <div class="welcome-hero">
+        <div class="brand">
+          <div class="brand-mark">云</div>
+          <div>
+            <div class="brand-name">云枢</div>
+            <div class="brand-sub">AI 协作工作台</div>
+          </div>
+        </div>
+        <span class="pill">企业级 · 安全合规 · 私有部署</span>
+        <h1 class="welcome-title">让 AI 成为<br/>企业的<span class="grad">协作中枢</span></h1>
+        <p class="welcome-desc">统一的对话、知识库、数据分析与任务调度能力，<br/>帮助团队把重复工作交给 AI，把判断留给人。</p>
+        <div class="welcome-actions">
+          <button class="btn btn-primary" x-on:click="showLogin()">登 录</button>
+        </div>
+        <div class="welcome-stats">
+          <span class="pf-chip ws-chip">多智能体协作</span>
+          <span class="pf-chip ws-chip">无人值守</span>
+          <span class="pf-chip ws-chip">稳定运行</span>
+          <span class="pf-chip ws-chip">邮件提醒</span>
+        </div>
+      </div>
+      <div class="welcome-preview">
+        <div class="preview-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="preview-title">云枢 · AI 协作工作台</span>
+        </div>
+        <div class="preview-body">
+          <div class="pmsg bot"><span class="pav">云</span><div class="pbub">已连接企业知识库，随时为您分析季度营收与风险 📈</div></div>
+          <div class="pmsg user"><div class="pbub">把毛利率和环比趋势拉出来看看</div></div>
+          <div class="pmsg bot"><span class="pav">云</span><div class="pbub">Q1–Q3 环比 +8.2% / +5.1% / +6.7%，毛利率稳定在 42%–44%。</div></div>
+        </div>
+        <div class="preview-foot">
+          <span class="pf-chip">智能体协作</span>
+          <span class="pf-chip">知识库</span>
+          <span class="pf-chip">数据看板</span>
+          <span class="pf-chip">任务调度</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="welcome-steps">
+      <div class="step"><span class="step-no">01</span><h4>连接知识</h4><p>导入文档与规范，构建专属知识中枢。</p></div>
+      <div class="step"><span class="step-no">02</span><h4>对话协作</h4><p>与智能体多轮对话，把重复工作交给 AI。</p></div>
+      <div class="step"><span class="step-no">03</span><h4>洞察决策</h4><p>沉淀数据洞察，让每一次决策有据可依。</p></div>
+    </div>
+  </div>
+</th:block>

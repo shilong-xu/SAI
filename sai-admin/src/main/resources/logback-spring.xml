@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 保持 Spring Boot 默认 console 输出不变 -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- SSE/通知链路独立诊断日志：仅这几类写文件，便于命令行定位事件在哪个环节丢失 -->
+    <appender name="SSE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/sse-diagnose.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/sse-diagnose.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>2</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{44} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="xsl.sai.framework.client.SseClient" level="DEBUG" additivity="false">
+        <appender-ref ref="SSE_FILE"/>
+    </logger>
+    <logger name="xsl.sai.framework.controller.SseController" level="INFO" additivity="false">
+        <appender-ref ref="SSE_FILE"/>
+    </logger>
+    <logger name="xsl.sai.client.service.impl.NotifyServiceImpl" level="INFO" additivity="false">
+        <appender-ref ref="SSE_FILE"/>
+    </logger>
+    <logger name="xsl.sai.client.controller.NotifyController" level="INFO" additivity="false">
+        <appender-ref ref="SSE_FILE"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

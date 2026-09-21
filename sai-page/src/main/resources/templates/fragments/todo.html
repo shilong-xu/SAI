@@ -1,0 +1,163 @@
+<th:block th:fragment="todo">
+  <div class="page todo-page">
+    <div class="page-head">
+      <div>
+        <h2>待办事项</h2>
+        <p class="muted" x-text="todoHint"></p>
+      </div>
+      <button class="btn btn-primary btn-sm" x-on:click="openTodoModal()">+ 新建待办</button>
+    </div>
+
+    <!-- 工具栏：标题模糊搜索 + 完成状态筛选 + 类型筛选 -->
+    <div class="kb-toolbar">
+      <div class="kb-search-box">
+        <input class="kb-search" type="text" placeholder="按标题搜索…"
+               x-model="todoKeyword" x-on:keydown.enter="todoSearch()" />
+      </div>
+      <select class="kb-select" x-model="todoDone" x-on:change="todoFilterDone($event.target.value)"
+              title="按完成状态筛选" aria-label="完成状态筛选">
+        <option value="">全部状态</option>
+        <option value="0">未完成</option>
+        <option value="1">已完成</option>
+      </select>
+      <select class="kb-select" x-model="todoType" x-on:change="todoFilterType($event.target.value)"
+              title="按类型筛选" aria-label="类型筛选">
+        <option value="">全部类型</option>
+        <template x-for="t in todoTypes" :key="t.code">
+          <option :value="String(t.code)" x-text="t.label"></option>
+        </template>
+      </select>
+      <button class="btn btn-primary btn-sm" x-on:click="todoSearch()">搜索</button>
+    </div>
+
+    <div class="kb-loading" x-show="todoLoading"><span class="spin-sm"></span> 加载中…</div>
+
+    <div class="data-box" x-show="!todoLoading">
+      <table class="tbl wide" x-show="todoList.length">
+        <thead>
+          <tr>
+            <th>标题</th>
+            <th>待办内容</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>更新时间</th>
+            <th class="ta-right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="d in todoList" :key="d.id">
+            <tr>
+              <td>
+                <!-- 标题可点击：打开详情弹窗（与知识库「点名称看详情」一致） -->
+                <span class="todo-title click" :class="{'done': d.done === 1}"
+                      x-on:click="openTodoDetail(d)" title="点击查看详情" x-text="d.title"></span>
+              </td>
+              <td class="td-md">
+                <div class="bubble md todo-mdbox" x-show="d.html" x-html="d.html"></div>
+                <span class="muted sm" x-show="!d.html">—</span>
+              </td>
+              <td>
+                <span class="todo-type" x-show="d.typeLabel" x-text="d.typeLabel"></span>
+                <span class="muted sm" x-show="!d.typeLabel">—</span>
+              </td>
+              <td>
+                <div class="todo-switch" :class="{'on': d.done === 1}"
+                     x-on:click="toggleTodo(d.id)"
+                     :title="d.done === 1 ? '点击标记为未完成' : '点击标记为已完成'">
+                  <div class="switch-track"><div class="switch-thumb"></div></div>
+                  <span class="sw-label" x-text="d.done === 1 ? '已完成' : '未完成'"></span>
+                </div>
+              </td>
+              <td><span class="t-now" x-text="d.time"></span></td>
+              <td class="ta-right">
+                <div class="row-actions">
+                  <button class="btn btn-ghost btn-xs" x-on:click="openTodoModal(d)">编辑</button>
+                  <button class="btn btn-ghost btn-xs danger" x-on:click="deleteTodo(d.id)">删除</button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div class="kb-empty" x-show="todoList.length === 0">
+        <p class="muted" x-show="!todoKeyword &amp;&amp; todoDone === '' &amp;&amp; !todoType">暂无待办事项，点右上角「新建待办」添加一条吧。</p>
+        <p class="muted" x-show="todoKeyword || todoDone !== '' || todoType">没有符合条件的待办事项，换个条件试试。</p>
+      </div>
+    </div>
+
+    <div class="kb-pager" x-show="todoTotal > 0 &amp;&amp; !todoLoading">
+      <button class="btn btn-ghost btn-sm" x-on:click="todoGoto(todoPage - 1)" :disabled="todoPage <= 1">上一页</button>
+      <span class="kb-page-info" x-text="todoPage + ' / ' + todoPageCount + '（共 ' + todoTotal + ' 条）'"></span>
+      <button class="btn btn-ghost btn-sm" x-on:click="todoGoto(todoPage + 1)" :disabled="todoPage >= todoPageCount">下一页</button>
+    </div>
+
+    <!-- 新建 / 编辑 弹窗 -->
+    <div class="modal-mask" x-show="todoModalOpen" x-cloak>
+      <div class="modal-card">
+        <h3 x-text="todoForm.id ? '编辑待办' : '新建待办'"></h3>
+        <div class="form">
+          <label class="field">
+            <span>标题</span>
+            <textarea x-model="todoForm.title" rows="2" maxlength="500" placeholder="请输入待办标题…"></textarea>
+          </label>
+          <label class="field">
+            <span>类型</span>
+            <select x-model="todoForm.type">
+              <template x-for="t in todoTypes" :key="t.code">
+                <option :value="String(t.code)" x-text="t.label"></option>
+              </template>
+            </select>
+          </label>
+          <div class="field">
+            <span>待办内容</span>
+            <div class="md-tabs">
+              <button type="button" class="md-tab" :class="{'active': todoTab==='edit'}" x-on:click="todoTab='edit'">编辑</button>
+              <button type="button" class="md-tab" :class="{'active': todoTab==='preview'}" x-on:click="todoTab='preview'">预览</button>
+            </div>
+            <textarea x-show="todoTab==='edit'" x-model="todoForm.content" rows="6"
+                      placeholder="支持 Markdown：# 标题、**加粗**、- 列表、`代码`、&gt; 引用…"></textarea>
+            <div x-show="todoTab==='preview'">
+              <div class="bubble md kb-mdbox kb-preview" x-html="md(todoForm.content)"></div>
+              <p class="md-hint" x-show="!todoForm.content">（暂无内容可预览）</p>
+            </div>
+          </div>
+          <div class="field row" x-show="todoForm.id">
+            <span>完成状态</span>
+            <div class="todo-switch" :class="{'on': todoForm.doneChecked}"
+                 x-on:click="todoForm.doneChecked = !todoForm.doneChecked">
+              <div class="switch-track"><div class="switch-thumb"></div></div>
+              <span class="sw-label" x-text="todoForm.doneChecked ? '已完成' : '未完成'"></span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost btn-sm" x-on:click="todoModalOpen=false">取消</button>
+          <button class="btn btn-primary btn-sm" x-on:click="saveTodo()">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 详情弹窗（点击列表标题打开；沿用知识库详情同款结构，复用 .kb-detail 样式） -->
+    <div class="modal-mask" x-show="todoDetailOpen" x-cloak>
+      <div class="modal-card wide">
+        <h3 x-text="todoDetail.title || '待办详情'"></h3>
+        <div class="kb-detail">
+          <div class="kb-detail-meta">
+            <span class="todo-type" x-show="todoDetail.typeLabel" x-text="todoDetail.typeLabel"></span>
+            <span class="badge ok" x-show="todoDetail.done === 1">已完成</span>
+            <span class="muted" x-show="todoDetail.done !== 1">未完成</span>
+            <span class="muted" x-show="todoDetail.createTime" x-text="'创建：' + todoDetail.createTime"></span>
+            <span class="muted" x-show="todoDetail.updateTime" x-text="'更新：' + todoDetail.updateTime"></span>
+          </div>
+          <div class="bubble md kb-mdbox" x-show="todoDetail.html" x-html="todoDetail.html"></div>
+          <p class="kb-detail-remark muted" x-show="!todoDetail.html">（暂无待办内容）</p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost btn-sm" x-on:click="todoDetailOpen=false">关闭</button>
+          <button class="btn btn-primary btn-sm"
+                  x-on:click="todoDetailOpen=false; openTodoModal(todoDetail)">编辑</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</th:block>

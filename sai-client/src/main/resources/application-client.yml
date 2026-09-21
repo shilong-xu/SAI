@@ -1,0 +1,8 @@
+sai:
+  auth:
+    jwt-secret: ${SAI_JWT_SECRET:change-me-please-use-a-long-random-secret}  # JWT 签名密钥，生产务必改为长随机串
+    accounts:
+      # 示例账号，首次部署后请立即修改（真实密码同样建议走 ${SAI_ADMIN_PASSWORD} 之类的环境变量）
+      - username: ${SAI_ADMIN_USERNAME:admin}
+        password: ${SAI_ADMIN_PASSWORD:admin123}
+        display-name: Admin

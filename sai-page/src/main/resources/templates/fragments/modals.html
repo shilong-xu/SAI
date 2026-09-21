@@ -1,0 +1,101 @@
+<th:block th:fragment="modals">
+  <!-- 通用确认弹窗（受 Alpine 状态 confirmOpen 控制；默认隐藏） -->
+  <div class="modal-mask" x-show="confirmOpen" x-cloak>
+    <div class="modal-card">
+      <h3 x-text="confirmTitle"></h3>
+      <p class="muted" x-text="confirmText"></p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" x-on:click="confirmOpen=false">取消</button>
+        <button class="btn btn-primary btn-sm" x-on:click="confirmOk()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 知识库：新建 / 编辑条目 -->
+  <div class="modal-mask" x-show="kbModalOpen" x-cloak>
+    <div class="modal-card wide">
+      <h3 x-text="kbForm.id ? '编辑知识库条目' : '新建知识库条目'"></h3>
+      <div class="form">
+        <div class="field">
+          <span>正文内容</span>
+          <div class="md-tabs">
+            <button type="button" class="md-tab" :class="{'active': kbTab==='edit'}" x-on:click="kbTab='edit'">编辑</button>
+            <button type="button" class="md-tab" :class="{'active': kbTab==='preview'}" x-on:click="kbTab='preview'">预览</button>
+          </div>
+          <textarea x-show="kbTab==='edit'" x-model="kbForm.content" rows="8"
+                    placeholder="粘贴或输入文档正文，保存时自动切片与向量化…"></textarea>
+          <div x-show="kbTab==='preview'">
+            <div class="bubble md kb-mdbox kb-preview" x-html="md(kbForm.content)"></div>
+            <p class="md-hint" x-show="!kbForm.content">（暂无内容可预览）</p>
+          </div>
+          <p class="md-hint">支持 Markdown：# 标题、**加粗**、*斜体*、<code>`代码`</code>、&gt; 引用、代码块、列表与表格。</p>
+        </div>
+        <div class="field">
+          <span>关键词（检索入口）</span>
+          <div class="kw-editor">
+            <div class="kw-wrap" x-show="kbForm.keywords.length">
+              <template x-for="(kw, i) in kbForm.keywords" :key="i">
+                <span class="tag kw-editable">
+                  <span x-text="kw"></span>
+                  <button type="button" class="kw-del" title="删除该关键词"
+                          x-on:click="removeKbKeyword(i)">×</button>
+                </span>
+              </template>
+            </div>
+            <p class="md-hint" x-show="!kbForm.keywords.length">
+              暂无关键词<template x-if="kbForm.kwAuto"><span>（保存时由模型自动提炼）</span></template>
+            </p>
+            <div class="kw-edit-row">
+              <input type="text" x-model="kbKwInput" placeholder="输入后回车添加，可用逗号分隔多个"
+                     x-on:keydown.enter.prevent="addKbKeyword()" />
+              <button type="button" class="btn btn-ghost btn-sm" x-on:click="addKbKeyword()">添加</button>
+              <button type="button" class="btn btn-ghost btn-sm" x-on:click="autoKbKeywords()"
+                      x-text="kbKwLoading ? '生成中…' : '自动生成'"></button>
+              <button type="button" class="btn btn-ghost btn-sm" x-show="kbForm.keywords.length"
+                      x-on:click="kbForm.keywords = []; kbForm.kwAuto = false">清空</button>
+            </div>
+            <label class="kw-auto">
+              <input type="checkbox" x-model="kbForm.kwAuto" />
+              <span>保存时由模型自动提炼（勾选后忽略上面手动编辑的关键词）</span>
+            </label>
+          </div>
+        </div>
+        <label class="field"><span>备注</span>
+          <input type="text" x-model="kbForm.remark" placeholder="可选" />
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" x-on:click="kbModalOpen=false">取消</button>
+        <button class="btn btn-primary btn-sm" x-on:click="saveKb()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 知识库：详情预览 -->
+  <div class="modal-mask" x-show="kbDetailOpen" x-cloak>
+    <div class="modal-card wide">
+      <h3 x-text="kbDetail.name || '知识库条目'"></h3>
+      <div class="kb-detail">
+        <div class="kb-detail-meta">
+          <span class="muted" x-show="kbDetail.id" x-text="'ID：' + kbDetail.id"></span>
+          <span class="muted" x-show="kbDetail.createTime" x-text="'创建：' + kbDetail.createTime"></span>
+          <span class="muted" x-show="kbDetail.updateTime" x-text="'更新：' + kbDetail.updateTime"></span>
+        </div>
+        <div class="kb-detail-kw" x-show="kbDetail.keywords &amp;&amp; kbDetail.keywords.length">
+          <span class="kb-detail-kw-label muted">关键词</span>
+          <div class="kw-wrap">
+            <template x-for="(kw, i) in kbDetail.keywords" :key="i">
+              <span class="tag" x-text="kw"></span>
+            </template>
+          </div>
+        </div>
+        <div class="bubble md kb-mdbox" x-html="md(kbDetail.content)"></div>
+        <p class="kb-detail-remark muted" x-show="kbDetail.remark" x-text="'备注：' + kbDetail.remark"></p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" x-on:click="kbDetailOpen=false">关闭</button>
+        <button class="btn btn-primary btn-sm" x-on:click="kbDetailOpen=false; openKbModal(kbDetail)">编辑</button>
+      </div>
+    </div>
+  </div>
+</th:block>

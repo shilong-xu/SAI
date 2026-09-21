@@ -1,0 +1,36 @@
+<th:block th:fragment="login">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-mark">云</div>
+      <div>
+        <div class="brand-name">云枢</div>
+        <div class="brand-sub">AI 协作工作台</div>
+      </div>
+    </div>
+    <h1 class="auth-title">登录到您的工作台</h1>
+    <p class="auth-desc">使用企业账号继续，开启智能协作之旅。</p>
+    <form class="form" x-on:submit.prevent="login()">
+      <label class="field">
+        <span class="field-label">邮箱 / 账号</span>
+        <input type="text" x-model="loginUser" placeholder="admin" autocomplete="username" />
+      </label>
+      <label class="field">
+        <span class="field-label">密码</span>
+        <input type="password" x-model="loginPass" placeholder="请输入密码" autocomplete="current-password" />
+      </label>
+      <div class="field-row">
+        <label class="checkbox"><input type="checkbox" x-model="remember" /> 记住我</label>
+        <a class="link" href="javascript:void(0)" x-on:click.prevent="toast('找回密码功能开发中')">忘记密码？</a>
+      </div>
+      <div class="login-err" x-text="loginErr"></div>
+      <button type="submit" class="btn btn-primary btn-block">登 录</button>
+    </form>
+    <div class="divider"><span>或使用以下方式</span></div>
+    <div class="social-row">
+      <button type="button" class="btn btn-ghost social" x-on:click="toast('企业微信登录开发中')">企业微信</button>
+      <button type="button" class="btn btn-ghost social" x-on:click="toast('钉钉登录开发中')">钉钉</button>
+      <button type="button" class="btn btn-ghost social" x-on:click="toast('SSO 登录开发中')">SSO</button>
+    </div>
+    <p class="auth-foot">还没有账号？<a class="link" href="javascript:void(0)" x-on:click.prevent="toast('试用申请功能开发中')">申请试用</a></p>
+  </div>
+</th:block>

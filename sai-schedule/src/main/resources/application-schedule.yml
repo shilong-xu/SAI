@@ -1,0 +1,27 @@
+sai:
+  schedule:
+    pool-size: 10 # 调度线程池大小
+    auto-start: true  # 是否在应用启动时自动从 DB 加载并注册「启用」状态的任务
+    # 反射调用的白名单：仅允许调用下列 bean 的 public 方法。
+    # 防止 schedule_task 表被写入后变成任意方法调用（RCE 风险）。
+    # 留空或注释表示不限制（不推荐，仅用于本地调试）。
+    allowed-beans:
+      - sampleScheduleTask
+      - emailReceiveService
+      - scheduleTask
+
+# Quartz 配置（Spring Boot 自动装配）
+spring:
+  quartz:
+    job-store-type: memory
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: SaiScheduler
+            instanceId: AUTO
+          threadPool:
+            class: org.quartz.simpl.SimpleThreadPool
+            threadCount: ${sai.schedule.pool-size}
+            threadPriority: 5
+            threadsInheritContextClassLoaderOfInitializingThread: true

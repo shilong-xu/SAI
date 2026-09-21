@@ -1,0 +1,64 @@
+<th:block th:fragment="schedule-log">
+  <div class="page sched-log-page">
+    <div class="page-head">
+      <div>
+        <h2>任务调度日志</h2>
+        <p class="muted">查看所有定时任务的执行记录与结果，数据来自后端 /api/schedule/logs。</p>
+      </div>
+      <div class="kb-toolbar" style="margin:0">
+        <div class="kb-cats">
+          <button class="chip" :class="{'active': schedLogType===''}" x-on:click="schedLogFilter('')">全部</button>
+          <button class="chip" :class="{'active': schedLogType==='COMMON'}" x-on:click="schedLogFilter('COMMON')">通用任务</button>
+          <button class="chip" :class="{'active': schedLogType==='AGENT'}" x-on:click="schedLogFilter('AGENT')">Agent 任务</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 加载态 -->
+    <div class="kb-loading" x-show="schedLogLoading"><span class="spin-sm"></span> 加载中…</div>
+
+    <!-- 日志表格（无数据时整表隐藏，表头不展示，由下方空态提示承担） -->
+    <div class="sched-wrap" x-show="!schedLogLoading">
+      <table class="tbl" x-show="schedLogs.length">
+        <thead>
+          <tr>
+            <th>任务名</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>耗时</th>
+            <th>错误信息</th>
+            <th>结果</th>
+            <th>时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="l in schedLogs" :key="l.id">
+            <tr>
+              <td>
+                <div class="t-name" x-text="l.taskName || ('#' + l.taskId)"></div>
+                <code class="target sm" x-show="l.invokeTarget" x-text="l.invokeTarget" :title="l.invokeTarget"></code>
+              </td>
+              <td><span class="badge" x-text="l.taskType || 'COMMON'"></span></td>
+              <td>
+                <span class="badge" :class="l.success===1 ? 'ok' : 'err'" x-text="l.success===1 ? '成功' : '失败'"></span>
+              </td>
+              <td x-text="(l.costMs != null ? l.costMs + ' ms' : '—')"></td>
+              <td>
+                <pre class="cell-pre err" x-show="l.errorMsg" x-text="l.errorMsg"></pre>
+                <span class="muted" x-show="!l.errorMsg">—</span>
+              </td>
+              <td>
+                <pre class="cell-pre" x-show="l.result" x-text="l.result" :title="l.result"></pre>
+                <span class="muted" x-show="!l.result">—</span>
+              </td>
+              <td><span class="nowrap" x-text="l.time"></span></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div class="kb-empty" x-show="schedLogs.length === 0">
+        <p class="muted">暂无调度日志。任务执行后这里会记录运行结果。</p>
+      </div>
+    </div>
+  </div>
+</th:block>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.xsl</groupId>
+        <artifactId>SAI</artifactId>
+        <version>1.0</version>
+    </parent>
+
+    <artifactId>sai-admin</artifactId>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- 页面模块（Thymeleaf 模板 + 静态资源 + 页面路由控制器，源码位于 sai-page 模块） -->
+        <dependency>
+            <groupId>com.xsl</groupId>
+            <artifactId>sai-page</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <!-- 架构模块 -->
+        <dependency>
+            <groupId>com.xsl</groupId>
+            <artifactId>sai-framework</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <!-- AgentAI模块 -->
+        <dependency>
+            <groupId>com.xsl</groupId>
+            <artifactId>sai-agent</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <!-- 客户端模块 -->
+        <dependency>
+            <groupId>com.xsl</groupId>
+            <artifactId>sai-client</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xsl</groupId>
+            <artifactId>sai-schedule</artifactId>
+            <version>1.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>SAI</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <includeSystemScope>true</includeSystemScope>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+
+</project>

@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: SAI
+  main:
+    banner-mode: off
+
+  mail:
+    host: smtp.qq.com                 # SMTP 服务器，如 smtp.qq.com / smtp.163.com（留空则 MailClient 降级为不可用）
+    port: 465              # 端口：SSL 通常 465，STARTTLS 通常 587
+    username: ${SAI_MAIL_USERNAME:your_email@qq.com}   # 发件账号（完整邮箱）
+    password: ${SAI_MAIL_PASSWORD:}                    # 授权码（非登录密码）—— 务必用环境变量注入，勿明文提交
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          # EHLO 主机名必须是合法域名，否则 QQ 返回 502 Invalid input
+          localhost: smtp.qq.com
+          starttls:
+            enable: false
+          ssl:
+            enable: true
+
+    from: SAI                   # 发件人显示名（标准 spring.mail 无此字段，由 MailClient 读取；缺省同 username）
+    # 邮件接收（IMAP/IMAPS 拉取收件箱）：默认开启，仅 host 为空时优雅降级不抓取
+    # 只使用一个邮箱：账号/授权码复用上面的 username / password，接收端仅配 IMAP 连接项
+    receive:
+      host: imap.qq.com        # IMAP 服务器，如 imap.qq.com / imap.163.com（与 SMTP 不同，需单独填）
+      port: 993                 # IMAP SSL 通常 993
+      protocol: imaps           # imap / imaps
+      folder: INBOX             # 拉取的文件夹
+      max: 20                   # 单次最多拉取的新邮件数
+      # 抓取入库后是否把新邮件提交给 Agent 处理（判定类型、按规则登记到待办事项等）
+      # false（默认）：只入库，不触发 Agent —— 抓取保持轻量，不消耗模型调用
+      # true：每封新邮件以「无人值守」方式提交给 Agent，按其判断结果决定是否登记为待办
+      dispatch-to-agent: false
+      # 提交给 Agent 时正文的最大字符数（超出截断，控制 token 消耗）
+      agent-content-chars: 4000
+      # 单封邮件 Agent 处理的超时（分钟）：超时只记日志，不影响抓取与入库结果
+      agent-timeout-minutes: 5
+
+server:
+  port: 80
+  netty:
+    idle-timeout: 0
+
+logging:
+  level:
+    io.r2dbc: DEBUG                # 开启调试日志
+    org.springframework.data.r2dbc: DEBUG
+
+# SSE 长连接推送（xsl.sai.framework.client.SseClient）
+  sse:
+    enabled: true               # 总开关，关闭后所有推送静默丢弃
+    heartbeat-seconds: 15       # 心跳间隔（秒），防代理按空闲超时掐连接
+    retry-seconds: 3            # 断线后前端自动重连间隔（秒）
+  log:
+    client:
+      enabled: false            # LogClient 文件日志开关（xsl.sai.framework.client.LogClient）：true-写请求/响应日志到文件，false-关闭

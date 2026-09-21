@@ -1,0 +1,144 @@
+<th:block th:fragment="schedule">
+  <div class="page sched-page">
+    <div class="page-head">
+      <div>
+        <h2>定时任务</h2>
+        <p class="muted">管理 Quartz 定时任务：启停、立即执行与调度日志，全部对接后端 /api/schedule。</p>
+      </div>
+      <button class="btn btn-primary btn-sm" x-on:click="openSchedModal()">+ 新建任务</button>
+    </div>
+
+    <!-- 工具栏：关键字搜索 -->
+    <div class="kb-toolbar">
+      <div class="kb-search-box">
+        <input class="kb-search" type="text" placeholder="按任务名 / 分组搜索…"
+               x-model="schedKeyword" x-on:keydown.enter="searchSched()" />
+        <button class="btn btn-primary btn-sm" x-on:click="searchSched()">搜索</button>
+      </div>
+    </div>
+
+    <!-- 加载态 -->
+    <div class="kb-loading" x-show="schedLoading"><span class="spin-sm"></span> 加载中…</div>
+
+    <!-- 任务表格（无数据时整表隐藏，表头不展示，由下方空态提示承担） -->
+    <div class="sched-wrap" x-show="!schedLoading">
+      <table class="tbl" x-show="schedTasks.length">
+        <thead>
+          <tr>
+            <th>任务名</th>
+            <th>分组</th>
+            <th>Cron</th>
+            <th>调用目标</th>
+            <th>状态</th>
+            <th class="ta-right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="t in schedTasks" :key="t.id">
+            <tr>
+              <td>
+                <div class="t-name" x-text="t.name"></div>
+                <div class="t-desc muted" x-show="t.description" x-text="t.description"></div>
+              </td>
+              <td x-text="t.groupName"></td>
+              <td><code class="cron" x-text="t.cron" :title="t.cron"></code></td>
+              <td><code class="target" x-text="t.invokeTarget" :title="t.invokeTarget"></code></td>
+              <td>
+                <button class="switch" :class="{'on': t.status===1}"
+                        x-on:click="toggleSched(t.id)"
+                        :title="t.status===1 ? '点击停用' : '点击启用'">
+                  <span class="knob"></span>
+                </button>
+                <span class="muted sm" x-text="t.status===1 ? '启用' : '停用'"></span>
+              </td>
+              <td class="ta-right">
+                <div class="row-actions">
+                  <button class="btn btn-ghost btn-xs" x-on:click="openSchedModal(t)">编辑</button>
+                  <button class="btn btn-ghost btn-xs" x-on:click="runSched(t.id)" title="立即执行一次">执行</button>
+                  <button class="btn btn-ghost btn-xs danger" x-on:click="deleteSched(t.id)">删除</button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div class="kb-empty" x-show="schedTasks.length === 0">
+        <p class="muted">暂无定时任务。点击右上角「新建任务」添加，或确认后端调度模块（sai-schedule）已启用。</p>
+      </div>
+    </div>
+
+    <!-- 分页 -->
+    <div class="kb-pager" x-show="schedTotal > 0 &amp;&amp; !schedLoading">
+      <button class="btn btn-ghost btn-sm" x-on:click="schedGoto(schedPage - 1)" :disabled="schedPage <= 1">上一页</button>
+      <span class="kb-page-info" x-text="schedPage + ' / ' + schedPageCount + '（共 ' + schedTotal + ' 条）'"></span>
+      <button class="btn btn-ghost btn-sm" x-on:click="schedGoto(schedPage + 1)" :disabled="schedPage >= schedPageCount">下一页</button>
+    </div>
+
+    <!-- 新建 / 编辑 弹窗 -->
+    <div class="modal-mask" x-show="schedModalOpen" x-cloak>
+      <div class="modal-card wide">
+        <h3 x-text="schedForm.id ? '编辑定时任务' : '新建定时任务'"></h3>
+        <div class="form">
+          <label class="field"><span>任务名<span class="req">*</span></span>
+            <input type="text" x-model="schedForm.name" placeholder="例如：每日数据汇总" />
+          </label>
+          <label class="field"><span>分组</span>
+            <input type="text" x-model="schedForm.groupName" placeholder="DEFAULT" />
+          </label>
+          <label class="field"><span>描述</span>
+            <input type="text" x-model="schedForm.description" placeholder="可选，简述任务用途" />
+          </label>
+          <div class="form-row">
+            <label class="field"><span>Cron 表达式<span class="req">*</span></span>
+              <input type="text" x-model="schedForm.cron" placeholder="0 0 2 * * ?" />
+            </label>
+            <label class="field"><span>调用目标<span class="req">*</span></span>
+              <input type="text" x-model="schedForm.invokeTarget" placeholder="beanName.methodName()" list="sched-bean-list" />
+            </label>
+          </div>
+          <datalist id="sched-bean-list">
+            <template x-for="(desc, name) in schedBeans" :key="name">
+              <option :value="name" x-bind:label="desc"></option>
+            </template>
+          </datalist>
+          <div class="form-row">
+            <label class="field"><span>并发执行</span>
+              <div class="select-theme" x-data="{ open:false }" :class="{'open': open}">
+                <button type="button" class="select-trigger" x-on:click="open=!open">
+                  <span x-text="schedForm.concurrent == 1 ? '并发' : '非并发（串行）'"></span>
+                  <svg class="sa" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="select-options" x-show="open" x-on:click.outside="open=false" x-transition>
+                  <div class="select-option" :class="{'selected': schedForm.concurrent != 1}" x-on:click="schedForm.concurrent='0'; open=false">非并发（串行）</div>
+                  <div class="select-option" :class="{'selected': schedForm.concurrent == 1}" x-on:click="schedForm.concurrent='1'; open=false">并发</div>
+                </div>
+              </div>
+            </label>
+            <label class="field"><span>超时（秒）</span>
+              <input type="number" x-model="schedForm.timeout" placeholder="600" />
+            </label>
+          </div>
+          <label class="field"><span>状态</span>
+            <div class="select-theme" x-data="{ open:false }" :class="{'open': open}">
+              <button type="button" class="select-trigger" x-on:click="open=!open">
+                <span x-text="schedForm.status == 1 ? '启用' : '停用'"></span>
+                <svg class="sa" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="select-options" x-show="open" x-on:click.outside="open=false" x-transition>
+                <div class="select-option" :class="{'selected': schedForm.status == 1}" x-on:click="schedForm.status='1'; open=false">启用</div>
+                <div class="select-option" :class="{'selected': schedForm.status != 1}" x-on:click="schedForm.status='0'; open=false">停用</div>
+              </div>
+            </div>
+          </label>
+          <label class="field"><span>备注</span>
+            <input type="text" x-model="schedForm.remark" placeholder="可选" />
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost btn-sm" x-on:click="schedModalOpen=false">取消</button>
+          <button class="btn btn-primary btn-sm" x-on:click="saveSched()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</th:block>

@@ -1,0 +1,68 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### IntelliJ IDEA ###
+.idea/**
+*.iws
+*.iml
+*.ipr
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+
+*/target/**
+/log/**
+# ===== .agentscope 工作区:仅提交声明式配置,忽略所有运行态(会话/记忆/agents等) =====
+.agentscope/**
+
+# ===== sai-admin/.agentscope 工作区:同样仅提交声明式配置,忽略所有运行态 =====
+sai-admin/.agentscope/**
+!sai-admin/.agentscope/workspace/
+!sai-admin/.agentscope/workspace/AGENTS.md
+!sai-admin/.agentscope/workspace/MEMORY.md
+!sai-admin/.agentscope/workspace/skills/
+!sai-admin/.agentscope/workspace/skills/**
+!sai-admin/.agentscope/workspace/subagents/
+!sai-admin/.agentscope/workspace/subagents/**
+!sai-admin/.agentscope/workspace/knowledge/
+!sai-admin/.agentscope/workspace/knowledge/**
+/.mvn/maven.config
+
+# ===== 运行日志 =====
+/logs/**
+
+# ===== Node 依赖（仓库根目录 package.json 仅供端到端自测）=====
+# 注意：package-lock.json 保留提交以保证自测环境可复现
+node_modules/
+
+# ===== 外部覆盖配置：含真实密码与密钥，禁止提交 =====
+# 请复制 application.yml.example 为 application.yml 后自行填写
+/application.yml
+!application.yml.example
+
+# ===== WorkBuddy 工作区：含个人记忆、本机路径与真实凭证，禁止提交 =====
+.workbuddy/

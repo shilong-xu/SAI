@@ -1,0 +1,27 @@
+spring:
+  profiles:
+    active: framework, agent, client, schedule, page
+
+  # ⚠️ 以下连接信息请通过环境变量注入，切勿把真实密码提交进版本库。
+  #    本地开发可在项目根放一份 application.yml（已 gitignore）覆盖，或导出环境变量：
+  #      export SAI_DB_PASSWORD=...   export SAI_REDIS_PASSWORD=...   export SAI_JWT_SECRET=...
+  r2dbc:
+    url: ${SAI_DB_URL:r2dbc:mariadb://127.0.0.1:3306/sai?sslMode=disable&allowPublicKeyRetrieval=true}
+    username: ${SAI_DB_USERNAME:root}
+    password: ${SAI_DB_PASSWORD:}
+    pool:
+      enabled: true
+  data:
+    redis:
+      host: ${SAI_REDIS_HOST:127.0.0.1}
+      password: ${SAI_REDIS_PASSWORD:}
+      database: 0
+      fail-fast: false
+
+sai:
+  # 数据库初始化开关：启动时检查 sql/sai.sql 定义的表，缺失则自动建表
+  schema:
+    # 是否启用自动初始化（默认开启）
+    auto-init: false
+    # 初始化 SQL 位置（支持 classpath: / file:），默认读取打包进 jar 的 sql/sai.sql
+    sql-location: classpath:sql/sai.sql

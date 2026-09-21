@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!--
+        彩色日志格式说明:
+          %cyan(...)    = 青色  → 时间戳
+          %magenta(...) = 洋红  → 线程
+          %highlight()  = 按级别自动着色:
+                          ERROR=红, WARN=黄, INFO=青绿, DEBUG=绿, TRACE=灰
+          %msg          = 日志正文（继承上级颜色）
+    -->
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%cyan(%d{yyyy-MM-dd HH:mm:ss.SSS}) %magenta([%thread]) %highlight(%-5level) %green(%logger{36}) - %msg%n"/>
+
+    <property name="FILE_LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+
+    <!-- 控制台输出（彩色） -->
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 屏蔽框架内部嘈杂日志 -->
+    <logger name="io.agentscope.harness.agent.middleware.AgentTraceMiddleware" level="OFF"/>
+    <logger name="io.agentscope.core.tool.Toolkit" level="OFF"/>
+    <logger name="io.r2dbc.pool.ConnectionPool" level="OFF"/>
+    <logger name="io.r2dbc.pool.PooledConnection" level="OFF"/>
+    <logger name="org.springframework.data.repository.config.RepositoryConfigurationDelegate" level="WARN"/>
+    <logger name="org.redisson.connection.ConnectionsHolder" level="WARN"/>
+    <logger name="org.quartz" level="WARN"/>
+
+    <logger name="org.thymeleaf.standard.processor.AbstractStandardFragmentInsertionTagProcessor" level="ERROR"/>
+
+    <logger name="xsl.sai.SpringMain" level="WARN"/>
+    <logger name="com.alibaba.cloud.ai.graph.internal.node.ParallelNode" level="WARN"/>
+
+    <!-- 控制台 -->
+    <root level="INFO">
+        <appender-ref ref="console"/>
+    </root>
+
+</configuration>
+
+<!--        优先级从高到低依次为：OFF、FATAL、ERROR、WARN、INFO、DEBUG、TRACE、 ALL-->
+<!--        ALL：打开所有日志记录 -->
+<!--        TRACE：很低的日志级别，一般不会使用 -->
+<!--        DEBUG：开发过程中打印一些运行信息 -->
+<!--        INFO：应用程序的运行过程 -->
+<!--        WARN：运行过程中的警告 -->
+<!--        ERROR：不影响系统运行的错误 -->
+<!--        FATAL：重大错误，直接停止程序的错误 -->
+<!--        OFF：关闭所有日志记录 -->

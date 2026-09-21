@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>云枢</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#0c9488" />
+  <link rel="stylesheet" href="/css/app.css?v=34" />
+  <!-- 三方库全部本地化（无外网依赖）：HTMX 片段懒加载 + Markdown(marked+DOMPurify) + 代码高亮(highlight.js) + Alpine.js 响应式 -->
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/vendor/marked.min.js" defer></script>
+  <script src="/vendor/purify.min.js" defer></script>
+  <script src="/vendor/highlight.min.js" defer></script>
+  <script src="/js/app.js?v=49" defer></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+</head>
+<body>
+  <!-- Alpine 根作用域：统一持有鉴权态、模式、会话、消息、子页等响应式状态 -->
+  <div id="root" x-data="app()">
+
+    <!-- 共享背景（欢迎 / 登录 页使用）：神经网络节点动画 -->
+    <div class="auth-bg-wrap" x-show="!authenticated">
+      <div class="auth-bg"><canvas id="bg-nodes" class="bg-nodes"></canvas></div>
+    </div>
+
+    <!-- ============ 欢迎页（未登录） ============ -->
+    <section class="auth-view" x-show="!authenticated &amp;&amp; view==='welcome'">
+      <div th:replace="fragments/welcome :: welcome"></div>
+    </section>
+
+    <!-- ============ 登录页（未登录） ============ -->
+    <section class="auth-view" x-show="!authenticated &amp;&amp; view==='login'">
+      <div th:replace="fragments/login :: login"></div>
+    </section>
+
+    <!-- ============ 应用主体（已登录） ============ -->
+    <div id="app" class="app" :class="{'mode-manage': mode==='manage'}" x-show="authenticated">
+
+      <!-- 头部导航栏 -->
+      <header class="header">
+        <div class="header-left">
+          <button class="menu-toggle" x-on:click="toggleSidebar()" title="菜单">
+            <svg viewBox="0 0 24 24" class="ic"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+          <div class="mode-switch" :data-mode="mode">
+            <span class="mode-thumb"></span>
+            <button type="button" class="mode-opt" data-mode="chat" x-on:click="setMode('chat')">AI 对话</button>
+            <button type="button" class="mode-opt" data-mode="manage" x-on:click="setMode('manage')">协作空间</button>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="notify-menu" id="notify-menu">
+            <button class="icon-btn" x-on:click="toggleNotify()" title="通知">
+              <svg viewBox="0 0 24 24" class="ic"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5-1.5-1.6V10a5.5 5.5 0 0 0-4-5.3V4a1.5 1.5 0 0 0-3 0v.7A5.5 5.5 0 0 0 6.5 10v4.4L5 17a1 1 0 0 0 .7 1.7h12.6A1 1 0 0 0 19 17Z"/></svg>
+              <span class="badge" x-show="unread > 0" x-text="unread > 99 ? '99+' : unread"></span>
+            </button>
+            <div class="notify-dropdown" :class="{'show': notifyOpen}">
+              <div class="nd-head">
+                <span class="nd-title">
+                  <svg viewBox="0 0 24 24" class="nd-title-ic"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5-1.5-1.6V10a5.5 5.5 0 0 0-4-5.3V4a1.5 1.5 0 0 0-3 0v.7A5.5 5.5 0 0 0 6.5 10v4.4L5 17a1 1 0 0 0 .7 1.7h12.6A1 1 0 0 0 19 17Z"/></svg>
+                  通知
+                </span>
+              </div>
+              <div class="nd-list">
+                <template x-for="n in notifies" :key="n.id">
+                  <div class="nd-item" :class="'nd-' + (n.type || 'info') + (n.read ? ' read' : ' unread')" x-on:click="readNotify(n)">
+                    <div class="nd-body">
+                      <div class="nd-row">
+                        <span class="nd-name" x-text="n.title"></span>
+                        <span class="nd-time" x-text="n.time"></span>
+                      </div>
+                      <div class="nd-text" x-text="n.content || '—'"></div>
+                    </div>
+                  </div>
+                </template>
+                <div class="nd-empty" x-show="!notifies.length">
+                  <svg viewBox="0 0 24 24" class="nd-empty-ic"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5-1.5-1.6V10a5.5 5.5 0 0 0-4-5.3V4a1.5 1.5 0 0 0-3 0v.7A5.5 5.5 0 0 0 6.5 10v4.4L5 17a1 1 0 0 0 .7 1.7h12.6A1 1 0 0 0 19 17Z"/></svg>
+                  <div class="nd-empty-t">暂无新通知</div>
+                  <div class="nd-empty-s">新消息到达时会自动出现在这里</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="user-menu" id="user-menu">
+            <button class="user-trigger" x-on:click="userMenuOpen=!userMenuOpen" aria-haspopup="true" title="账户">
+              <div class="avatar" x-text="user.name.charAt(0)"></div>
+            </button>
+            <div class="user-dropdown" :class="{'show': userMenuOpen}">
+              <div class="ud-head">
+                <div class="avatar lg" x-text="user.name.charAt(0)"></div>
+                <div>
+                  <div class="um-name" x-text="user.name"></div>
+                  <div class="um-role" x-text="user.role"></div>
+                </div>
+              </div>
+              <button class="btn btn-ghost btn-block" x-on:click="logout()">退出登录</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="sidebar-overlay" :class="{'show': sidebarOpen}" x-on:click="sidebarOpen=false"></div>
+
+      <div class="shell">
+        <!-- 左侧导航栏：AI 对话（会话列表） / 协作空间（管理导航） -->
+        <aside class="sidebar" :class="{'open': sidebarOpen}">
+          <nav class="snav">
+            <!-- AI 对话：会话列表 -->
+            <div class="snav-pane" data-pane="chat">
+              <div class="conv-panel">
+                <div class="conv-head">
+                  <span class="conv-h-title">会话</span>
+                  <button class="btn btn-primary btn-sm" x-on:click="newConv()">+ 新建</button>
+                </div>
+                <div class="conv-list">
+                  <template x-for="c in conversations" :key="c.id">
+                    <div class="conv-item" :class="{'active': c.id===activeConv}">
+                      <div class="conv-main" x-on:click="selectConv(c.id)">
+                        <div class="conv-name">
+                          <span x-show="c.pinned" class="conv-pin" title="已置顶">📌</span>
+                          <span x-text="c.name"></span>
+                          <span class="conv-time" x-text="c.time"></span>
+                        </div>
+                        <div class="conv-prev" x-text="c.prev"></div>
+                      </div>
+                      <button class="conv-dot" x-on:click.stop="openConvMenu(c.id)" title="更多">⋯</button>
+                      <div class="conv-menu" x-show="convMenuId===c.id" x-on:click.stop>
+                        <button x-on:click="renameConv(c.id)">重命名</button>
+                        <button x-on:click="togglePin(c.id)">置顶 / 取消置顶</button>
+                        <button class="danger" x-on:click="deleteConv(c.id)">删除</button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+            <!-- 协作空间：首页 + 待办 + 知识库 + 邮件 + 自动化（定时任务 / 调度日志 / Agent 任务） -->
+            <div class="snav-pane" data-pane="manage">
+              <div class="snav-link" :class="{'active': current==='home'}" x-on:click="go('home')">
+                <span class="s-ico">🏠</span>首页
+              </div>
+              <div class="nav-group">待办</div>
+              <div class="snav-link" :class="{'active': current==='todo'}" x-on:click="go('todo')">
+                <span class="s-ico">✅</span>待办事项
+              </div>
+              <div class="nav-group">知识库</div>
+              <div class="snav-link" :class="{'active': current==='kb'}" x-on:click="go('kb')">
+                <span class="s-ico">📚</span>知识库
+              </div>
+              <div class="nav-group">邮件</div>
+              <div class="snav-link" :class="{'active': current==='email'}" x-on:click="go('email')">
+                <span class="s-ico">✉️</span>邮件
+              </div>
+              <div class="nav-group">自动化</div>
+              <div class="snav-link" :class="{'active': current==='schedule'}" x-on:click="go('schedule')">
+                <span class="s-ico">⏰</span>定时任务
+              </div>
+              <div class="snav-link" :class="{'active': current==='schedule-log'}" x-on:click="go('schedule-log')">
+                <span class="s-ico">📜</span>调度日志
+              </div>
+              <div class="snav-link" :class="{'active': current==='agent-schedule'}" x-on:click="go('agent-schedule')">
+                <span class="s-ico">🤖</span>Agent 任务
+              </div>
+            </div>
+          </nav>
+        </aside>
+
+        <!-- 主内容区：全部视图由 Thymeleaf 预渲染，Alpine 按 mode/current 切换可见性（避免 HTMX 注入后按钮未重新绑定的问题） -->
+        <main class="main">
+          <div class="content" id="content">
+            <div class="view-pane" x-show="mode==='chat'" th:insert="fragments/chat :: chat"></div>
+            <div class="view-pane" x-show="mode==='manage' &amp;&amp; current==='home'" th:insert="fragments/home :: home"></div>
+            <div class="view-pane" x-show="mode==='manage' &amp;&amp; current==='kb'" th:insert="fragments/kb :: kb"></div>
+            <div class="view-pane" x-show="mode==='manage' &amp;&amp; current==='email'" th:insert="fragments/email :: email"></div>
+            <div class="view-pane" x-show="mode==='manage' &amp;&amp; current==='schedule'" th:insert="fragments/schedule :: schedule"></div>
+            <div class="view-pane" x-show="mode==='manage' &amp;&amp; current==='schedule-log'" th:insert="fragments/schedule-log :: schedule-log"></div>
+            <div class="view-pane" x-show="mode==='manage' &amp;&amp; current==='agent-schedule'" th:insert="fragments/agent-schedule :: agent-schedule"></div>
+            <div class="view-pane" x-show="mode==='manage' &amp;&amp; current==='todo'" th:insert="fragments/todo :: todo"></div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- 通用弹窗（默认隐藏，受 confirmOpen 控制） -->
+    <div th:replace="fragments/modals :: modals"></div>
+
+    <!-- 轻提示（占位按钮反馈） -->
+    <div class="toast" x-show="toastMsg" x-text="toastMsg" x-cloak></div>
+
+    <!-- 左侧新消息提醒：SSE 到达时从左侧滑入，3s 自动消失 -->
+    <div class="notify-pop-wrap">
+      <template x-for="p in notifyPops" :key="p.key">
+        <div class="notify-pop" :class="'pop-' + (p.type || 'info')" x-on:click="openNotifyPop(p)" title="点击查看">
+          <div class="np-head">
+            <span class="np-title" x-text="p.title"></span>
+            <span class="np-time" x-text="p.time"></span>
+          </div>
+          <div class="np-content" x-show="p.content" x-text="p.content"></div>
+        </div>
+      </template>
+    </div>
+  </div>
+</body>
+</html>

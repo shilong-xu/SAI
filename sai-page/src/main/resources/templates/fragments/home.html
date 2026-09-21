@@ -1,0 +1,245 @@
+<th:block th:fragment="home">
+  <!-- 协作空间首页：仪表盘（模型消耗 + 学习记录 + 近 7 日趋势） -->
+  <div class="page home-page">
+    <div class="page-head">
+      <div>
+        <h2>仪表盘</h2>
+        <p class="muted">欢迎回来，<span x-text="user.name"></span>。这里汇总了模型消耗与学习记录。</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" x-on:click="loadDashboard()">刷新</button>
+    </div>
+
+    <!-- 加载态 -->
+    <div class="kb-loading" x-show="dashLoading"><span class="spin-sm"></span> 加载中…</div>
+
+    <div class="dash-body" x-show="!dashLoading">
+      <!-- 模型信息 -->
+      <div class="dash-title">模型信息</div>
+      <div class="stat dash-model-card">
+        <div class="dash-model-name">
+          <span class="dash-model-lbl">当前模型</span>
+          <span class="dash-model-val" x-text="dash.model || '未配置'"></span>
+        </div>
+        <div class="dash-model-stats">
+          <div class="dash-model-item">
+            <span class="dash-model-num" x-text="fmtNum(dash.todayTokens)"></span>
+            <span class="dash-model-cap">今日 Token</span>
+          </div>
+          <span class="dash-sep"></span>
+          <div class="dash-model-item">
+            <span class="dash-model-num" x-text="fmtNum(dash.totalTokens)"></span>
+            <span class="dash-model-cap">累计 Token</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 各模块统计 -->
+      <div class="dash-title">各模块概览</div>
+      <div class="dash-grid dash-grid-4">
+        <div class="stat dash-clickable dash-mod-card" x-on:click="go('kb')" title="进入知识库">
+          <div class="stat-top"><span>📚 知识库</span></div>
+          <div class="dash-split">
+            <div class="dash-split-l">
+              <div class="dash-pair">
+                <div>
+                  <span class="dash-pair-num" x-text="fmtNum(dash.knowledgeTotal)"></span>
+                  <span class="dash-pair-lbl">条目</span>
+                </div>
+                <span class="dash-sep"></span>
+                <div>
+                  <span class="dash-pair-num" x-text="fmtNum(dash.knowledgeChunks)"></span>
+                  <span class="dash-pair-lbl">向量块</span>
+                </div>
+              </div>
+              <div class="dash-foot">已索引可检索</div>
+            </div>
+            <div class="dash-split-r">
+              <template x-for="item in (dash.knowledgeRecent || [])" :key="item.title">
+                <div class="dash-prev">
+                  <div class="dash-prev-t" x-text="item.title"></div>
+                  <div class="dash-prev-s" x-text="item.subtitle || '—'"></div>
+                </div>
+              </template>
+              <div class="dash-prev-empty" x-show="!(dash.knowledgeRecent && dash.knowledgeRecent.length)">暂无记录</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat dash-clickable dash-mod-card" x-on:click="go('email')" title="进入邮件">
+          <div class="stat-top"><span>📧 邮件</span></div>
+          <div class="dash-split">
+            <div class="dash-split-l">
+              <div class="dash-pair">
+                <div>
+                  <span class="dash-pair-num" x-text="fmtNum(dash.emailInbox)"></span>
+                  <span class="dash-pair-lbl">收件</span>
+                </div>
+                <span class="dash-sep"></span>
+                <div>
+                  <span class="dash-pair-num" x-text="fmtNum(dash.emailSent)"></span>
+                  <span class="dash-pair-lbl">发件</span>
+                </div>
+              </div>
+              <div class="dash-foot">今日 <span x-text="fmtNum(dash.emailToday)"></span> 封 · 未摘要 <span class="dash-err" x-text="fmtNum(dash.emailUnsummarized)"></span></div>
+            </div>
+            <div class="dash-split-r">
+              <template x-for="item in (dash.emailRecent || [])" :key="item.title + item.time">
+                <div class="dash-prev">
+                  <div class="dash-prev-t" x-text="item.title"></div>
+                  <div class="dash-prev-s"><span x-text="item.subtitle"></span><span class="dash-prev-x" x-show="item.extra" x-text="' · ' + item.extra"></span></div>
+                </div>
+              </template>
+              <div class="dash-prev-empty" x-show="!(dash.emailRecent && dash.emailRecent.length)">暂无记录</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat dash-clickable dash-mod-card" x-on:click="go('schedule')" title="进入定时任务">
+          <div class="stat-top"><span>⏰ 定时任务</span></div>
+          <div class="dash-split">
+            <div class="dash-split-l">
+              <div class="dash-pair">
+                <div>
+                  <span class="dash-pair-num" x-text="fmtNum(dash.scheduleToday)"></span>
+                  <span class="dash-pair-lbl">今日</span>
+                </div>
+                <span class="dash-sep"></span>
+                <div>
+                  <span class="dash-pair-num" x-text="fmtNum(dash.scheduleTotal)"></span>
+                  <span class="dash-pair-lbl">累计</span>
+                </div>
+              </div>
+              <div class="dash-foot">成功率 <span class="dash-ok" x-text="schedRate()"></span> · 失败 <span class="dash-err" x-text="fmtNum(schedFail())"></span></div>
+            </div>
+            <div class="dash-split-r">
+              <template x-for="item in (dash.scheduleRecent || [])" :key="item.title + item.time">
+                <div class="dash-prev">
+                  <div class="dash-prev-t" x-text="item.title"></div>
+                  <div class="dash-prev-s"><span x-text="item.subtitle"></span><span class="dash-prev-x" x-show="item.extra" x-text="' · ' + item.extra"></span></div>
+                </div>
+              </template>
+              <div class="dash-prev-empty" x-show="!(dash.scheduleRecent && dash.scheduleRecent.length)">暂无记录</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat dash-clickable dash-mod-card" x-on:click="go('todo')" title="进入待办事项">
+          <div class="stat-top"><span>✅ 待办事项</span></div>
+          <div class="dash-split">
+            <div class="dash-split-l">
+              <div class="dash-pair">
+                <div>
+                  <span class="dash-pair-num" x-text="fmtNum(dash.todoActive)"></span>
+                  <span class="dash-pair-lbl">待完成</span>
+                </div>
+                <span class="dash-sep"></span>
+                <div>
+                  <span class="dash-pair-num" x-text="fmtNum(dash.todoTotal)"></span>
+                  <span class="dash-pair-lbl">累计</span>
+                </div>
+              </div>
+              <div class="dash-foot">今日新增 <span x-text="fmtNum(dash.todoToday)"></span> 项 · 已完成 <span class="dash-ok" x-text="fmtNum(dashTodoDone())"></span></div>
+            </div>
+            <div class="dash-split-r">
+              <template x-for="item in (dash.todoRecent || [])" :key="item.title + item.time">
+                <div class="dash-prev">
+                  <div class="dash-prev-t" x-text="item.title"></div>
+                  <div class="dash-prev-s"><span x-text="item.subtitle"></span><span class="dash-prev-x" x-show="item.extra" x-text="' · ' + item.extra"></span></div>
+                </div>
+              </template>
+              <div class="dash-prev-empty" x-show="!(dash.todoRecent && dash.todoRecent.length)">暂无记录</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 近 7 日趋势（四个独立小图） -->
+      <div class="dash-title">近 7 日趋势</div>
+      <div class="dash-chart-row dash-chart-row-4">
+        <div class="card dash-mini-chart">
+          <div class="dash-mini-head"><span class="dot dot-token"></span>Token 消耗</div>
+          <div class="chart dash-mini-svg">
+            <svg class="line-chart" viewBox="0 0 700 200">
+              <g class="grid">
+                <line x1="4" y1="16" x2="696" y2="16" />
+                <line x1="4" y1="60" x2="696" y2="60" />
+                <line x1="4" y1="104" x2="696" y2="104" />
+                <line x1="4" y1="148" x2="696" y2="148" />
+                <line x1="4" y1="172" x2="696" y2="172" />
+              </g>
+              <polyline class="ln ln-token" :points="dashPoints('tokens')" />
+              <g class="pts" x-html="dashDots('tokens')"></g>
+            </svg>
+            <div class="chart-overlay">
+              <div x-html="dashValLabels('tokens')"></div>
+              <div x-html="dashAxis()"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card dash-mini-chart">
+          <div class="dash-mini-head"><span class="dot dot-email"></span>邮件收发</div>
+          <div class="chart dash-mini-svg">
+            <svg class="line-chart" viewBox="0 0 700 200">
+              <g class="grid">
+                <line x1="4" y1="16" x2="696" y2="16" />
+                <line x1="4" y1="60" x2="696" y2="60" />
+                <line x1="4" y1="104" x2="696" y2="104" />
+                <line x1="4" y1="148" x2="696" y2="148" />
+                <line x1="4" y1="172" x2="696" y2="172" />
+              </g>
+              <polyline class="ln ln-email" :points="dashPoints('emails')" />
+              <g class="pts" x-html="dashDots('emails')"></g>
+            </svg>
+            <div class="chart-overlay">
+              <div x-html="dashValLabels('emails')"></div>
+              <div x-html="dashAxis()"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card dash-mini-chart">
+          <div class="dash-mini-head"><span class="dot dot-sched"></span>调度执行</div>
+          <div class="chart dash-mini-svg">
+            <svg class="line-chart" viewBox="0 0 700 200">
+              <g class="grid">
+                <line x1="4" y1="16" x2="696" y2="16" />
+                <line x1="4" y1="60" x2="696" y2="60" />
+                <line x1="4" y1="104" x2="696" y2="104" />
+                <line x1="4" y1="148" x2="696" y2="148" />
+                <line x1="4" y1="172" x2="696" y2="172" />
+              </g>
+              <polyline class="ln ln-sched" :points="dashPoints('schedules')" />
+              <g class="pts" x-html="dashDots('schedules')"></g>
+            </svg>
+            <div class="chart-overlay">
+              <div x-html="dashValLabels('schedules')"></div>
+              <div x-html="dashAxis()"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card dash-mini-chart">
+          <div class="dash-mini-head"><span class="dot dot-todo"></span>待办新增</div>
+          <div class="chart dash-mini-svg">
+            <svg class="line-chart" viewBox="0 0 700 200">
+              <g class="grid">
+                <line x1="4" y1="16" x2="696" y2="16" />
+                <line x1="4" y1="60" x2="696" y2="60" />
+                <line x1="4" y1="104" x2="696" y2="104" />
+                <line x1="4" y1="148" x2="696" y2="148" />
+                <line x1="4" y1="172" x2="696" y2="172" />
+              </g>
+              <polyline class="ln ln-todo" :points="dashPoints('todos')" />
+              <g class="pts" x-html="dashDots('todos')"></g>
+            </svg>
+            <div class="chart-overlay">
+              <div x-html="dashValLabels('todos')"></div>
+              <div x-html="dashAxis()"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</th:block>

@@ -1,0 +1,72 @@
+<th:block th:fragment="chat">
+  <div class="page chat-page">
+    <div class="chat-main">
+      <div class="chat-top">
+        <div class="chat-title">
+          <b x-text="activeConvName"></b>
+          <span class="think" x-show="sending" title="正在思考…">
+            <span class="think-spin"></span>
+            <span class="think-text">思考中</span>
+          </span>
+        </div>
+        <div class="chat-actions">
+          <button class="plan-toggle" :class="{'on': planMode}" x-on:click="togglePlan()" :title="planMode ? '退出计划模式' : '进入计划模式'">
+            <span class="plan-dot"></span>
+            <span x-text="planMode ? '计划模式·开' : '计划模式'"></span>
+          </button>
+          <button class="plan-toggle saa-toggle" :class="{'on': saaMode}" x-on:click="toggleSaa()" title="开启/关闭编排模式（SAA 多智能体流水线）">
+            <span class="plan-dot"></span>
+            <span x-show="!saaMode">编排模式</span>
+            <span x-show="saaMode">编排模式·开</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 计划模式面板：展示智能体产出的执行计划，支持批准/取消 -->
+      <div class="plan-panel" x-show="planMode && planText">
+        <div class="plan-panel-head">
+          <span class="plan-panel-title">执行计划</span>
+          <span class="plan-phase" x-text="planPhase || ''"></span>
+        </div>
+        <div class="plan-panel-body markdown" x-html="md(planText)"></div>
+        <div class="plan-panel-actions">
+          <button class="btn btn-primary btn-sm" x-on:click="planExit(true)">批准执行</button>
+          <button class="btn btn-ghost btn-sm" x-on:click="planExit(false)">取消</button>
+        </div>
+      </div>
+
+      <!-- SAA 编排流水线进度：开启编排模式后，逐节点实时显示「进行中 / 已完成」 -->
+      <div class="saa-pipeline" x-show="saaMode && saaPipeline.length">
+        <template x-for="p in saaPipeline" :key="p.node">
+          <div class="saa-step" :class="{'done': !p.started && p.text, 'running': p.started}">
+            <span class="saa-step-dot"></span>
+            <span class="saa-step-label" x-text="p.label"></span>
+            <span class="saa-step-status" x-show="p.started">进行中…</span>
+            <span class="saa-step-status" x-show="!p.started && p.text">已完成</span>
+          </div>
+        </template>
+      </div>
+
+      <div class="chat-body" id="chat-body" x-ref="chatBody" x-on:scroll="onChatScroll()">
+        <template x-for="m in messages" :key="m.id">
+          <div class="msg" :class="m.role">
+            <div class="bubble md" x-html="md(m.text)"></div>
+          </div>
+        </template>
+      </div>
+
+      <div class="chat-input">
+        <div class="composer">
+          <textarea id="chat-text" rows="1" x-model="draft" x-ref="chatText"
+            x-effect="grow()" x-on:keydown="onKey($event)" placeholder="输入消息，Enter 发送，Shift+Enter 换行…"></textarea>
+          <button class="send-btn" x-show="!sending" x-on:click="send()" title="发送">
+            <svg viewBox="0 0 24 24" class="ic"><path d="M3 11l18-8-8 18-2-7-8-3Z"/></svg>
+          </button>
+          <button class="send-btn stop" x-show="sending" x-on:click="stopChat()" title="停止生成">
+            <svg viewBox="0 0 24 24" class="ic"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</th:block>

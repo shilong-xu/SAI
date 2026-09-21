@@ -1,0 +1,54 @@
+# ============================================================================
+# SAI 云枢 —— 外部覆盖配置模板
+#
+# 用法：复制为项目根下的 application.yml（该文件已被 .gitignore 忽略，不会被提交），
+#       按需填入真实值。Spring Boot 会以外层 application.yml 逐键覆盖 classpath 内的
+#       同名配置，jar 内独有的键仍然生效。
+#
+# ⚠️ 真实密码 / API Key 一律不要写进版本库。推荐用环境变量注入：
+#   export SAI_DB_PASSWORD=...      数据库密码
+#   export SAI_REDIS_PASSWORD=...   Redis 密码
+#   export SAI_LLM_API_KEY=sk-xxx   大模型 API Key
+#   export SAI_MAIL_PASSWORD=...    邮箱授权码
+#   export SAI_JWT_SECRET=...       JWT 签名密钥（长随机串）
+#   export SAI_ADMIN_PASSWORD=...   后台管理员密码
+# ============================================================================
+server:
+  port: 80
+
+# spring:
+#   r2dbc:
+#     url: r2dbc:mariadb://<HOST>:3306/sai?sslMode=disable&allowPublicKeyRetrieval=true
+#     username: root
+#     password: ${SAI_DB_PASSWORD}
+#   data:
+#     redis:
+#       host: <HOST>
+#       port: 6379
+#       password: ${SAI_REDIS_PASSWORD}
+#       database: 0
+
+agentScope:
+  models:
+    modelName: deepseek-v4-flash
+    apiKey: ${SAI_LLM_API_KEY}
+    apiBase: https://api.deepseek.com
+    temperature: 0.2
+    # 思考型模型 thinking 与正文共享该配额；4000 为 thinking + 正文留足余量
+    maxTokens: 4000
+  embedding:
+    enabled: true
+    base-url: http://127.0.0.1:11434
+    api-path: /api/embed
+    model: bge-m3
+    format: ollama
+    timeout-ms: 30000
+    vector-dimensions: 1024
+
+sai:
+  auth:
+    jwt-secret: ${SAI_JWT_SECRET}
+    accounts:
+      - username: admin
+        password: ${SAI_ADMIN_PASSWORD}
+        display-name: Admin
